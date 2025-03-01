@@ -2,95 +2,130 @@ import requests
 import json
 import time
 from kafka import KafkaProducer
-#from config import *
-import time
-import datetime
-from datetime import date
-from datetime import timedelta
-import os
+import threading
+
+# Configuration Kafka
 topic_name = 'coin'
-servers = 'localhost:9092'
 servers = 'kafka:9092'
 LIMIT = 30
-N = 5
 
-#time.sleep(10)
-print(servers)
-
-while (True):
-
+# Attendre que Kafka soit prêt
+while True:
     try:
         producer = KafkaProducer(bootstrap_servers=[servers])
+        print("Connexion à Kafka établie")
         break
-    except:
-        pass
-    time.sleep(1)
+    except Exception as e:
+        print(f"Tentative de connexion à Kafka: {e}")
+        time.sleep(1)
 
-def requestCoin(coin):
-    url = f'https://api.binance.com/api/v3/klines?symbol={coin}&interval=1m&limit={LIMIT}'
-    r = requests.get(url)
-    data = r.json()
-    return data
+# Convertir les valeurs numériques en float
+def convert_to_float(value):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return value
 
-def getCoins(coin_list):
-    data = {}
-    for coin in coin_list:
+# Récupérer et envoyer les données pour une paire et un intervalle spécifiques
+def process_coin_interval(coin, interval):
+    try:
+        # Récupérer les données
+        url = f'https://api.binance.com/api/v3/klines?symbol={coin}&interval={interval}'
+        r = requests.get(url)
+        data = r.json()
+        print(f"Données obtenues pour {coin}/{interval}: {len(data)} entrées")
+        
+        # Envoyer immédiatement les données à Kafka
+        messages_sent = 0
+        for entry in data:
+            # Convertir la liste en dictionnaire avec des types numériques
+            entry_dict = {
+                "coin": coin,
+                "timestamp": entry[0],
+                "open": convert_to_float(entry[1]),
+                "high": convert_to_float(entry[2]),
+                "low": convert_to_float(entry[3]),
+                "close": convert_to_float(entry[4]),
+                "volume": convert_to_float(entry[5]),
+                "close_time": entry[6],
+                "quote_asset_volume": convert_to_float(entry[7]),
+                "number_of_trades": int(entry[8]),
+                "taker_buy_base_asset_volume": convert_to_float(entry[9]),
+                "taker_buy_quote_asset_volume": convert_to_float(entry[10]),
+                "ignore": entry[11],
+                "interval": interval
+            }
+            
+            # Envoyer le message
+            producer.send(topic_name, json.dumps(entry_dict).encode('utf-8'))
+            messages_sent += 1
+        
+        # Flush après chaque coin/intervalle
+        producer.flush()
+        print(f"Envoyé {messages_sent} messages pour {coin}/{interval}")
+        return messages_sent
+    
+    except Exception as e:
+        print(f"Erreur pour {coin}/{interval}: {e}")
+        return 0
+
+# Liste des cryptomonnaies à surveiller
+def getCoinsList():
+    return ['BTCUSDC', 'ETHUSDC', 'XRPUSDC', 'SOLUSDC']
+
+# Liste des intervalles à collecter
+intervals = ['1m', '5m', '15m', '1h', '1d']
+
+# Fonction pour traiter plusieurs paires/intervalles avec multithreading
+def process_all_coins_intervals(coins, intervals):
+    threads = []
+    for coin in coins:
+        for interval in intervals:
+            # Créer un thread pour chaque combinaison coin/interval
+            print(f"Début du traitement pour {coin} avec l'intervalle {interval}")
+            thread = threading.Thread(target=process_coin_interval, args=(coin, interval))
+            threads.append(thread)
+            thread.start()
+    
+    # Attendre que tous les threads terminent
+    total_messages = 0
+    for thread in threads:
+        thread.join()
+        print(f"Thread {thread} terminé")
+    
+    return len(coins) * len(intervals) * LIMIT  # Estimation du nombre de messages
+
+# Boucle principale avec gestion des erreurs
+def main():
+    coin_list = getCoinsList()
+    cycle = 0
+    
+    while True:
         try:
-            coin_info = requestCoin(coin)
-            coin_aka = coin.replace('USDT', '')
-            data[coin_aka] = coin_info
+            cycle += 1
+            start_time = time.time()
+            print(f"\n--- Début du cycle {cycle} ---")
+            
+            # Traiter toutes les paires/intervalles en parallèle
+            estimated_messages = process_all_coins_intervals(coin_list, intervals)
+            
+            # Calculer le temps d'exécution
+            execution_time = time.time() - start_time
+            print(f"Cycle {cycle} terminé en {execution_time:.2f} secondes. Environ {estimated_messages} messages envoyés.")
+            
+            # Attendre avant le prochain cycle (au moins 60 secondes pour éviter de surcharger l'API)
+            sleep_time = max(60 - execution_time, 5)
+            print(f"Attente de {sleep_time:.2f} secondes avant le prochain cycle...")
+            time.sleep(sleep_time)
             
         except Exception as e:
-            print('getCoinsE:', e)
-        time.sleep(1)
-    return data
+            print(f"Erreur dans le cycle principal: {e}")
+            time.sleep(30)  # Attendre en cas d'erreur
 
-def cleanCoin(data, name):
-    coin_data = {}
-    coin_data['name'] = name 
-    now = datetime.datetime.now()
-    timestart = int(now.timestamp())
-    coin_data['timestart'] = timestart
-   # coin_data['price'] = float(data[3])
-    coin_data['volume'] = float(data[7])
-   # coin_data['num'] = float(data[8])
-    coin_data
-    return coin_data
-
-def sendCoins(data, sleep_time = 5):
-    name_list = [x for x in data]
-    for i in range(len(data[name_list[0]])):
-        for name in name_list:
-            print(name)
-            coin = data[name][i]
-            t0 = (coin[0])
-            t1 = (coin[6])
-            volume = coin[7]
-            d0 = datetime.datetime.fromtimestamp(t0 / 1000 )
-            d1 = datetime.datetime.fromtimestamp(t1 / 1000 )
-            send_data = cleanCoin(coin, name)
-            print(d0, '-->', d1, 'volume: ', volume)  
-            producer.send(topic_name, json.dumps(send_data).encode('utf-8'))
-            time.sleep(sleep_time)
-        
-        
-def getCoinsList():
-    # url = 'https://api.binance.com/api/v3/ticker/24hr'
-    # r = requests.get(url)
-    # df = r.json()
-    # df = [coin for coin in df if coin["symbol"].endswith("USDT")]
-    # sdf = sorted(df, key = lambda x: float(x['lastPrice']), reverse = True)[:N]
-    # return [coin['symbol'] for coin in sdf]
-
-    return ['BTCUSDT', 'BNBUSDT', 'ETHUSDT', 'DOGEUSDT', 'XRPUSDT', 
-            'SHIBUSDT', 'ADAUSDT', 'ARBUSDT', 'MATICUSDT', 'SOLUSDT']
-
-coin_list = getCoinsList()
-while True:
-    
-    coins = getCoins(coin_list)
-    sendCoins(coins)
-
-
-producer.close()
-
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Programme interrompu par l'utilisateur")
+        producer.close()
+        print("Producteur Kafka fermé")
