@@ -66,7 +66,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
 # Fonction pour créer la base de données et la table si elles n'existent pas
 def create_db_and_table(db_name, table_name):
-    conn = psycopg2.connect(host="192.168.1.17", port="5432", user="hive", password="hive", dbname="postgresql")
+    conn = psycopg2.connect(host="192.168.1.17", port="5432", user="hive", password="hive", dbname="postgres")
     conn.autocommit = True
     cursor = conn.cursor()
 
@@ -115,27 +115,33 @@ def write_to_postgres(df_batch, batch_id):
         logging.error("Erreur : La colonne 'coin' est manquante dans le DataFrame.")
         return
 
-    # Obtenir les informations de base de données et de table
-    coin = df_batch.select("coin").distinct().first()['coin']
-    interval = df_batch.select("interval").distinct().first()['interval']
-    db_name = f"source_{coin.lower()}_db"
-    table_name = f"table_{interval}"
+    # Traitement pour chaque combinaison distincte de 'coin' et 'interval'
+    distinct_rows = df_batch.select("coin", "interval").distinct().collect()
+    for row in distinct_rows:
+        coin = row["coin"]
+        interval = row["interval"]
+        db_name = f"source_{coin.lower()}_db"
+        table_name = f"table_{interval}"
 
-    # Créer la base de données et la table si elles n'existent pas
-    create_db_and_table(db_name, table_name)
+        # Créer la base de données et la table si elles n'existent pas
+        create_db_and_table(db_name, table_name)
 
-    # Écrire tout le DataFrame dans PostgreSQL en mode "append"
-    df_batch.write \
-        .format("jdbc") \
-        .option("url", f"{postgres_url}{db_name}") \
-        .option("dbtable", table_name) \
-        .option("user", postgres_properties["user"]) \
-        .option("password", postgres_properties["password"]) \
-        .option("driver", postgres_properties["driver"]) \
-        .mode("append") \
-        .save()
+        # Filtrer le DataFrame pour le batch en cours avec le coin et l'intervalle spécifiés
+        filtered_df = df_batch.filter((col("coin") == coin) & (col("interval") == interval))
 
-    logging.info(f"Traitement terminé pour le batch {batch_id}. Données insérées dans la table {db_name}.{table_name}.")
+        # Écrire tout le DataFrame filtré dans PostgreSQL en mode "append"
+        filtered_df.write \
+            .format("jdbc") \
+            .option("url", f"{postgres_url}{db_name}") \
+            .option("dbtable", table_name) \
+            .option("user", postgres_properties["user"]) \
+            .option("password", postgres_properties["password"]) \
+            .option("driver", postgres_properties["driver"]) \
+            .mode("append") \
+            .save()
+
+        logging.info(f"Traitement terminé pour le batch {batch_id}. Données insérées dans la table {db_name}.{table_name} pour {coin} et {interval}.")
+
 
 # Écrire les données dans PostgreSQL
 query = df \

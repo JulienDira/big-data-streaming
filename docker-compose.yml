@@ -10,6 +10,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 2g  # Limite de mémoire à 2 Go
+          cpus: '1.0'  # Limite à 1 cœur CPU
+        reservations:
+          memory: 1g  # Réservation de mémoire à 1 Go
+          cpus: '0.5'  # Réservation de 0.5 cœur CPU
 
   kafka-ui:
     container_name: kafka-ui
@@ -23,6 +31,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 1g  # Limite à 1 Go de mémoire
+          cpus: '0.5'  # Limite à 0.5 cœur CPU
+        reservations:
+          memory: 512m  # Réservation de 512 Mo de mémoire
+          cpus: '0.2'  # Réservation de 0.2 cœur CPU
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -41,9 +57,18 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - kafka_data:/var/lib/kafka
+      - ./config/kafka/:/opt/kafka/config/
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 4g  # Limite à 4 Go de mémoire
+          cpus: '2.0'  # Limite à 2 cœurs CPU
+        reservations:
+          memory: 2g  # Réservation de mémoire à 2 Go
+          cpus: '1.0'  # Réservation de 1 cœur CPU
 
   producer-longtime:
     container_name: producer-longtime
@@ -59,6 +84,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 2g  # Limite à 2 Go de mémoire
+          cpus: '1.0'  # Limite à 1 cœur CPU
+        reservations:
+          memory: 1g  # Réservation de mémoire à 1 Go
+          cpus: '0.5'  # Réservation de 0.5 cœur CPU
 
   producer-shorttime:
     container_name: producer-shorttime
@@ -74,6 +107,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 1g  # Limite à 1 Go de mémoire
+          cpus: '0.5'  # Limite à 0.5 cœur CPU
+        reservations:
+          memory: 512m  # Réservation de mémoire à 512 Mo
+          cpus: '0.2'  # Réservation de 0.2 cœur CPU
 
   spark-longtime:
     container_name: spark-longtime
@@ -89,6 +130,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 4g  # Limite à 4 Go de mémoire
+          cpus: '1.0'  # Limite à 2 cœurs CPU
+        reservations:
+          memory: 2g  # Réservation de mémoire à 2 Go
+          cpus: '1.0'  # Réservation de 1 cœur CPU
 
   spark-shorttime:
     container_name: spark-shorttime
@@ -104,6 +153,14 @@ services:
     networks:
       - default
       - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 2g  # Limite à 2 Go de mémoire
+          cpus: '1.0'  # Limite à 1 cœur CPU
+        reservations:
+          memory: 1g  # Réservation de mémoire à 1 Go
+          cpus: '0.5'  # Réservation de 0.5 cœur CPU
 
 networks:
   Projet2BigData:

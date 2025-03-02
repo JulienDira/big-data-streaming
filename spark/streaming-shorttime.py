@@ -10,7 +10,7 @@ kafka_server = "kafka:9092"
 input_topic = "shorttime"
 
 # Configuration HDFS
-hdfs_path = "hdfs://192.168.1.17:9000/RAW/"
+hdfs_path = "hdfs://192.168.1.17:9000/RAW/shorttime/"
 
 # Configuration Spark
 spark_version = '3.2.3'
@@ -73,6 +73,7 @@ def write_to_hdfs(df_batch, batch_id):
         .format("avro") \
         .mode("append") \
         .option("path", f"{hdfs_path}coin_shorttime_batch_{batch_id}") \
+        .option("dfs.replication", "2") \
         .save()
 
     logging.info(f"Traitement terminé pour le batch {batch_id}. Données écrites dans HDFS.")
