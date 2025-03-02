@@ -1,9 +1,15 @@
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
+    networks:
+      - default
+      - Projet2BigData
 
   kafka-ui:
     container_name: kafka-ui
@@ -14,9 +20,13 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
     volumes:
       - ./kui/config.yaml:/etc/kafkaui/dynamic_config.yaml
+    networks:
+      - default
+      - Projet2BigData
 
   kafka:
     image: confluentinc/cp-kafka:latest
+    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -28,28 +38,89 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://localhost:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL    
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1  
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka
+    networks:
+      - default
+      - Projet2BigData
 
-  producer:
+  producer-longtime:
+    container_name: producer-longtime
     build:
       context: .
-      dockerfile: Dockerfile.producer
+      dockerfile: Dockerfile.producer-longtime
     volumes:
-      - ./kafka:/app
+      - ./kafka/producer-longtime.py:/app/producer-longtime.py
+      - producer_longtime_data:/data
     depends_on:
       - kafka
-    command: python3 /app/producer.py
+    command: python3 /app/producer-longtime.py
+    networks:
+      - default
+      - Projet2BigData
 
-  spark:
+  producer-shorttime:
+    container_name: producer-shorttime
     build:
       context: .
-      dockerfile: Dockerfile.spark
+      dockerfile: Dockerfile.producer-shorttime
     volumes:
-      - ./spark:/app
+      - ./kafka/producer-shorttime.py:/app/producer-shorttime.py
+      - producer_shorttime_data:/data
     depends_on:
       - kafka
-    command: python3 /app/streaming.py
+    command: python3 /app/producer-shorttime.py
+    networks:
+      - default
+      - Projet2BigData
+
+  spark-longtime:
+    container_name: spark-longtime
+    build:
+      context: .
+      dockerfile: Dockerfile.spark-longtime
+    volumes:
+      - ./spark/:/app
+      - spark_longtime_data:/spark-data
+    depends_on:
+      - kafka
+    command: python3 /app/streaming-longtime.py
+    networks:
+      - default
+      - Projet2BigData
+
+  spark-shorttime:
+    container_name: spark-shorttime
+    build:
+      context: .
+      dockerfile: Dockerfile.spark-shorttime
+    volumes:
+      - ./spark/:/app
+      - spark_shorttime_data:/spark-data
+    depends_on:
+      - kafka
+    command: python3 /app/streaming-shorttime.py
+    networks:
+      - default
+      - Projet2BigData
 
 networks:
-  hadoopnetwork:
-    external: true 
+  Projet2BigData:
+    external: true
+  default:
+    name: crypto_network
+
+volumes:
+  zookeeper_data:
+    name: crypto_zookeeper_data
+  kafka_data:
+    name: crypto_kafka_data
+  producer_longtime_data:
+    name: crypto_producer_longtime_data
+  producer_shorttime_data:
+    name: crypto_producer_shorttime_data
+  spark_longtime_data:
+    name: crypto_spark_longtime_data
+  spark_shorttime_data:
+    name: crypto_spark_shorttime_data

@@ -8,7 +8,7 @@ import psycopg2
 
 # Configuration Kafka
 kafka_server = "kafka:9092"
-input_topic = "coin"
+input_topic = "longtime"
 
 # Configuration PostgreSQL
 postgres_url = "jdbc:postgresql://192.168.1.17:5432/"
@@ -20,7 +20,7 @@ postgres_properties = {
 
 # Configuration Spark
 spark_version = '3.2.3'
-os.environ['PYSPARK_SUBMIT_ARGS'] = f'--packages org.apache.spark:spark-sql-kafka-0-10_2.12:{spark_version},org.postgresql:postgresql:42.2.23 streaming.py'
+os.environ['PYSPARK_SUBMIT_ARGS'] = f'--packages org.apache.spark:spark-sql-kafka-0-10_2.12:{spark_version},org.postgresql:postgresql:42.2.23 streaming-longtime.py'
 
 spark = SparkSession.builder.appName("KafkaStream").getOrCreate()
 spark.sparkContext.setLogLevel('ERROR')
@@ -118,7 +118,7 @@ def write_to_postgres(df_batch, batch_id):
     # Obtenir les informations de base de données et de table
     coin = df_batch.select("coin").distinct().first()['coin']
     interval = df_batch.select("interval").distinct().first()['interval']
-    db_name = f"{coin.lower()}_db"
+    db_name = f"source_{coin.lower()}_db"
     table_name = f"table_{interval}"
 
     # Créer la base de données et la table si elles n'existent pas

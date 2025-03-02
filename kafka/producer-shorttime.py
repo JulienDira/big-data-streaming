@@ -5,9 +5,8 @@ from kafka import KafkaProducer
 import threading
 
 # Configuration Kafka
-topic_name = 'coin'
+topic_name = 'shorttime'
 servers = 'kafka:9092'
-LIMIT = 30
 
 # Attendre que Kafka soit prêt
 while True:
@@ -27,13 +26,13 @@ def convert_to_float(value):
         return value
 
 # Récupérer et envoyer les données pour une paire et un intervalle spécifiques
-def process_coin_interval(coin, interval):
+def process_coin_interval(coin):
     try:
         # Récupérer les données
-        url = f'https://api.binance.com/api/v3/klines?symbol={coin}&interval={interval}'
+        url = f'https://api.binance.com/api/v3/klines?symbol={coin}&interval=1s'
         r = requests.get(url)
         data = r.json()
-        print(f"Données obtenues pour {coin}/{interval}: {len(data)} entrées")
+        print(f"Données obtenues pour {coin}/1s: {len(data)} entrées")
         
         # Envoyer immédiatement les données à Kafka
         messages_sent = 0
@@ -53,7 +52,7 @@ def process_coin_interval(coin, interval):
                 "taker_buy_base_asset_volume": convert_to_float(entry[9]),
                 "taker_buy_quote_asset_volume": convert_to_float(entry[10]),
                 "ignore": entry[11],
-                "interval": interval
+                "interval": '1s'
             }
             
             # Envoyer le message
@@ -62,30 +61,26 @@ def process_coin_interval(coin, interval):
         
         # Flush après chaque coin/intervalle
         producer.flush()
-        print(f"Envoyé {messages_sent} messages pour {coin}/{interval}")
+        print(f"Envoyé {messages_sent} messages pour {coin}/1s")
         return messages_sent
     
     except Exception as e:
-        print(f"Erreur pour {coin}/{interval}: {e}")
+        print(f"Erreur pour {coin}/1s: {e}")
         return 0
 
 # Liste des cryptomonnaies à surveiller
 def getCoinsList():
     return ['BTCUSDC', 'ETHUSDC', 'XRPUSDC', 'SOLUSDC']
 
-# Liste des intervalles à collecter
-intervals = ['1m', '5m', '15m', '1h', '1d']
-
 # Fonction pour traiter plusieurs paires/intervalles avec multithreading
-def process_all_coins_intervals(coins, intervals):
+def process_all_coins_intervals(coins):
     threads = []
     for coin in coins:
-        for interval in intervals:
-            # Créer un thread pour chaque combinaison coin/interval
-            print(f"Début du traitement pour {coin} avec l'intervalle {interval}")
-            thread = threading.Thread(target=process_coin_interval, args=(coin, interval))
-            threads.append(thread)
-            thread.start()
+        # Créer un thread pour chaque combinaison coin/interval
+        print(f"Début du traitement pour {coin} avec l'intervalle 1s")
+        thread = threading.Thread(target=process_coin_interval, args=(coin,))  # Correction ici
+        threads.append(thread)
+        thread.start()
     
     # Attendre que tous les threads terminent
     total_messages = 0
@@ -93,7 +88,7 @@ def process_all_coins_intervals(coins, intervals):
         thread.join()
         print(f"Thread {thread} terminé")
     
-    return len(coins) * len(intervals) * LIMIT  # Estimation du nombre de messages
+    return len(coins)  # Estimation du nombre de messages
 
 # Boucle principale avec gestion des erreurs
 def main():
@@ -107,20 +102,15 @@ def main():
             print(f"\n--- Début du cycle {cycle} ---")
             
             # Traiter toutes les paires/intervalles en parallèle
-            estimated_messages = process_all_coins_intervals(coin_list, intervals)
+            estimated_messages = process_all_coins_intervals(coin_list)
             
             # Calculer le temps d'exécution
             execution_time = time.time() - start_time
             print(f"Cycle {cycle} terminé en {execution_time:.2f} secondes. Environ {estimated_messages} messages envoyés.")
             
-            # Attendre avant le prochain cycle (au moins 60 secondes pour éviter de surcharger l'API)
-            sleep_time = max(60 - execution_time, 5)
-            print(f"Attente de {sleep_time:.2f} secondes avant le prochain cycle...")
-            time.sleep(sleep_time)
-            
         except Exception as e:
             print(f"Erreur dans le cycle principal: {e}")
-            time.sleep(30)  # Attendre en cas d'erreur
+            time.sleep(1)  # Attendre en cas d'erreur
 
 if __name__ == "__main__":
     try:

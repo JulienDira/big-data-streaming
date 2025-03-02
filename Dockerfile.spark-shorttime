@@ -19,4 +19,4 @@ RUN pip install -r /app/requirements.txt
 WORKDIR /app
 
 # Lancer le script Spark
-CMD ["spark-submit", "--master", "local[*]", "streaming.py"]
+CMD ["spark-submit", "--master", "local[*]", "streaming-shorttime.py"]
