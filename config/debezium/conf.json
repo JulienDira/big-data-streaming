@@ -1,0 +1,56 @@
+{
+    "name": "inventory-connector-db1",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "192.168.1.17",
+      "database.port": "5432",
+      "database.user": "hive",
+      "database.password": "hive",
+      "database.dbname": "source_btcusdc_db",
+      "database.server.name": "dbserver1",
+      "table.include.list": "db1.inventory.customers"
+    }
+  }
+  
+  {
+    "name": "inventory-connector-db2",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "192.168.1.17",
+      "database.port": "5432",
+      "database.user": "hive",
+      "database.password": "hive",
+      "database.dbname": "source_ethusdc_db",
+      "database.server.name": "dbserver2",
+      "table.include.list": "db2.sales.orders"
+    }
+  }
+  
+  {
+    "name": "inventory-connector-db3",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "192.168.1.17",
+      "database.port": "5432",
+      "database.user": "hive",
+      "database.password": "hive",
+      "database.dbname": "source_solusdc_db",
+      "database.server.name": "dbserver3",
+      "table.include.list": "db3.products.catalog"
+    }
+  }
+  
+  {
+    "name": "inventory-connector-db4",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "192.168.1.17",
+      "database.port": "5432",
+      "database.user": "hive",
+      "database.password": "hive",
+      "database.dbname": "source_xrpusdc_db",
+      "database.server.name": "dbserver4",
+      "table.include.list": "db4.hr.employees"
+    }
+  }
+  

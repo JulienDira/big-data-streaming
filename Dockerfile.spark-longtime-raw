@@ -1,0 +1,22 @@
+FROM python:3.9-slim-buster
+
+# Mettre à jour et installer les dépendances nécessaires
+RUN apt-get update && apt-get install -y openjdk-11-jdk-headless gcc libpq-dev
+
+# Installer PySpark
+RUN pip install pyspark==3.2.3
+
+# Installer psycopg2-binary pour la connexion PostgreSQL
+RUN pip install psycopg2-binary
+
+# Copier les fichiers Spark dans le conteneur
+COPY spark/* /app/
+
+# Installer les dépendances depuis le fichier requirements.txt
+RUN pip install -r /app/requirements.txt
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Lancer le script Spark
+CMD ["spark-submit", "--master", "local[*]", "streaming-longtime-raw.py"]

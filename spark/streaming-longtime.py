@@ -50,6 +50,7 @@ df = spark \
     .option("kafka.bootstrap.servers", kafka_server) \
     .option("subscribe", input_topic) \
     .option("startingOffsets", "latest") \
+    .option("failOnDataLoss", "false") \
     .load() \
     .selectExpr("CAST(value AS STRING)") \
     .select(from_json("value", schema).alias("data")) \

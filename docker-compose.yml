@@ -23,7 +23,7 @@ services:
     container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
     ports:
-      - 8080:8080
+      - 8085:8085
     environment:
       DYNAMIC_CONFIG_ENABLED: 'true'
     volumes:
@@ -55,6 +55,11 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL    
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 5  
+      KAFKA_LOG_RETENTION_BYTES: 1073741824  # 1 Go
+      KAFKA_LOG_CLEANUP_POLICY: delete  # Supprimer les anciens logs
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824  # 1 Go
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 60000  # 1 minute
     volumes:
       - kafka_data:/var/lib/kafka
       - ./config/kafka/:/opt/kafka/config/
@@ -69,6 +74,20 @@ services:
         reservations:
           memory: 2g  # Réservation de mémoire à 2 Go
           cpus: '1.0'  # Réservation de 1 cœur CPU
+
+  # Service Debezium
+  # debezium:
+  #   image: debezium/connect:1.9
+  #   ports:
+  #     - 8083:8083
+  #   environment:
+  #     CONFIG_STORAGE_TOPIC: my_connect_configs
+  #     OFFSET_STORAGE_TOPIC: my_connect_offsets
+  #     STATUS_STORAGE_TOPIC: my_connect_statuses
+  #     BOOTSTRAP_SERVERS: kafka:9092
+  #   links:
+  #     - zookeeper
+  #     - kafka
 
   producer-longtime:
     container_name: producer-longtime
@@ -127,6 +146,29 @@ services:
     depends_on:
       - kafka
     command: python3 /app/streaming-longtime.py
+    networks:
+      - default
+      - Projet2BigData
+    deploy:
+      resources:
+        limits:
+          memory: 4g  # Limite à 4 Go de mémoire
+          cpus: '1.0'  # Limite à 2 cœurs CPU
+        reservations:
+          memory: 2g  # Réservation de mémoire à 2 Go
+          cpus: '1.0'  # Réservation de 1 cœur CPU
+
+  spark-longtime-raw:
+    container_name: spark-longtime-raw
+    build:
+      context: .
+      dockerfile: Dockerfile.spark-longtime-raw
+    volumes:
+      - ./spark/:/app
+      - spark_longtime_data:/spark-data
+    depends_on:
+      - kafka
+    command: python3 /app/streaming-longtime-raw.py
     networks:
       - default
       - Projet2BigData
